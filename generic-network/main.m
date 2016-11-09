@@ -22,12 +22,13 @@ clear;
 dataset = csvread('balance-scale-dataset-input.csv');
 results = csvread('balance-scale-dataset-results.csv');
 
+% selects randomly some indexes for the training set
 selection = randperm(size(dataset, 1))';
 selection = selection(1:250,:);
 
-% defines the learning rate alpha
+% defines the learning rate alpha and regulization
 alpha = 0.01;
-lambda = 0.01;
+lambda = 0.5;
 
 % defines the number of possible output categories
 outputCategories = 3;
@@ -41,43 +42,52 @@ inputLayer = [ones(rows(inputLayer),1) inputLayer];
 
 % layer dimentions
 inputLayerSize = columns(inputLayer);
-hiddenLayer1Size = inputLayerSize + 1; %round(sqrt(columns(inputLayer) * outputCategories));
+hiddenLayer1Size = round(sqrt(columns(inputLayer) * outputCategories));
 outputLayerSize = outputCategories;
 
 % initial weights (+1 for bias unit)
 weightInputLayer = randomInit(inputLayerSize, hiddenLayer1Size);
 weightHiddenLayer1 = randomInit(hiddenLayer1Size+1, outputCategories);
 
+% amount of weights to calculate
+weightsSum = rows(weightInputLayer) * columns(weightInputLayer) + ...
+  rows(weightHiddenLayer1) * columns(weightHiddenLayer1);
+  
+if(weightsSum >= rows(inputLayer)) 
+  printf("WARNING: the amount of weights exceeds the number of training examples!");
+endif
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 errorArray = [];
 lastAlpha = alpha;
 
+lastGradInputLayer = zeros(size(weightInputLayer));
+lastGradHiddenLayer1 = zeros(size(weightHiddenLayer1));
+
+% gets the start time in seconds
+startTime = time();
+
 for i = 1:4000
  
   [gradInputLayer, gradHiddenLayer1, activationOutputLayer, error] = ...
     networkGradient(alpha, lambda, inputLayer, expectedResults, weightInputLayer, weightHiddenLayer1);
-    
+     
   weightInputLayer = weightInputLayer - gradInputLayer;
   weightHiddenLayer1 = weightHiddenLayer1 - gradHiddenLayer1; 
 
-  errorArray = [errorArray; error];
+  lastGradInputLayer = gradInputLayer;
+  lastGradHiddenLayer1 = gradHiddenLayer1;
   
-  if(i > 1)
-    errorDiff = errorArray(end-1,1) - error;
-      if(errorDiff > 0)
-        % error got smaller
-        alpha = min(5, alpha + alpha * 0.05);
-      else
-        % error got bigger
-        alpha = max(0.001, alpha - alpha * 0.05);
-      endif
-  endif
+  errorArray = [errorArray; error];
+  alpha = adaptAlpha(alpha, errorArray);
+  
 endfor
 
 
 ##################################
+
+printf("Training Time: %f\n", (time() - startTime));
 
 % calculate training error
 wrongCategorized = sum(max(xor(expectedResults, round(activationOutputLayer)),[],2));
