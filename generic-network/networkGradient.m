@@ -40,9 +40,9 @@ function [gradInputLayer, gradHiddenLayer1, activationOutputLayer, error] = netw
 
   
   % calculate error for input layer
+  sigmoidInputLayer = sigmoidGradient(zHiddenLayer1);  
   errorInputLayer = errorHiddenLayer * weightHiddenLayer1;
   % drop the error for the bias unit and calculate the error for the input layer
-  sigmoidInputLayer = sigmoidGradient(zHiddenLayer1);  
   errorInputLayer = errorInputLayer(:,2:end);
   errorInputLayer = (errorInputLayer .* sigmoidInputLayer);
   % calculate the gradient for input layer
